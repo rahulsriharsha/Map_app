@@ -202,23 +202,12 @@ function App() {
           />
         )}
         
-        {distance != null && distance < 400 ? (
-          <MarkerClusterGroup
-            chunkedLoading
-            iconCreateFunction={createCustomClusterIcon}
-          >
-            {markers.map((marker, index) => (
-              <Marker key={index} position={marker.geocode} icon={customIcon}>
-                <Popup>
-                  <h4>
-                    {marker.popup}
-                  </h4>
-                </Popup>
-              </Marker>
-            ))}
-          </MarkerClusterGroup>           
-        ):(
-          markers.map((marker, index) => (
+        
+        <MarkerClusterGroup
+          chunkedLoading
+          iconCreateFunction={createCustomClusterIcon}
+        >
+          {markers.map((marker, index) => (
             <Marker key={index} position={marker.geocode} icon={customIcon}>
               <Popup>
                 <h4>
@@ -226,8 +215,8 @@ function App() {
                 </h4>
               </Popup>
             </Marker>
-          ))
-        )}
+          ))}
+        </MarkerClusterGroup>           
 
 
       </MapContainer>
