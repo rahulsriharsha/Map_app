@@ -6,8 +6,8 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet"
 import { useState } from "react";
 import axios from 'axios';
 import { Icon } from 'leaflet';
-import { divIcon, point, popup } from 'leaflet';
-import MarkerClusterGroup from "react-leaflet-cluster";
+// import { divIcon, point, popup } from 'leaflet';
+// import MarkerClusterGroup from "react-leaflet-cluster";
 
 function Maps() {
 
@@ -19,59 +19,62 @@ function Maps() {
 
 
   // Markers
-  const markers = [
-    {
-      geocode: [48.86, 2.3522],
-      popup: "Hello, I am popup 1"
-    },
-    {
-      geocode: [48.85, 2.3522],
-      popup: "Hello, I am popup 2"
-    },
-    {
-      geocode: [48.855, 2.34],
-      popup: "Hello, I am popup 3"
-    }
-  ]
+  // const markers = [
+  //   {
+  //     geocode: [48.86, 2.3522],
+  //     popup: "Hello, I am popup 1"
+  //   },
+  //   {
+  //     geocode: [48.85, 2.3522],
+  //     popup: "Hello, I am popup 2"
+  //   },
+  //   {
+  //     geocode: [48.855, 2.34],
+  //     popup: "Hello, I am popup 3"
+  //   }
+  // ]
 
   const customIcon = new Icon ({
     iconUrl: "/images/location-pin.png",
     iconSize: [38, 38], // size of the icon
   })
 
-  const createCustomClusterIcon = (cluster) => {
-    return new divIcon({
-      html: `<div class="cluster-icon">${cluster.getChildCount()}</div>`,
-      className: "custom-marker-cluster",
-      iconSize: point(33, 33, true)
-    });
-  };
+  // const createCustomClusterIcon = (cluster) => {
+  //   return new divIcon({
+  //     html: `<div class="cluster-icon">${cluster.getChildCount()}</div>`,
+  //     className: "custom-marker-cluster",
+  //     iconSize: point(33, 33, true)
+  //   });
+  // };
 
 
 
-  const createdMarkers = [
-    {
-      geocode: startCoords,
-      popup: "I am the starting location"
-    },
-    {
-      geocode: endCoords,
-      popup: "I am the destination"
-    }
-  ]
+  // const createdMarkers = [
+  //   {
+  //     geocode: startCoords,
+  //     popup: "I am the starting location"
+  //   },
+  //   {
+  //     geocode: endCoords,
+  //     popup: "I am the destination"
+  //   }
+  // ]
 
   const fetchCoordinates = async (place, setCoords) => {
     try{
       const res = await axios.get("https://api.opencagedata.com/geocode/v1/json", {
         params: {
           q: place,
-          key: "ecf2d9c5db294d8eaf318a95ded1eacd",
+          key: process.env.REACT_APP_OPENCAGE_API_KEY
         },
       });
       const { lat, lng } = res.data.results[0].geometry;
-      setCoords([lat, lng]);
+      const coords = [lat, lng];
+      setCoords(coords);
+      return coords;
     } catch(err) {
       console.error("Error fetching coordinates: ", err);
+      return null;
     }
   };
 
@@ -88,7 +91,7 @@ function Maps() {
         },
         {
           headers: {
-            Authorization: "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjkxM2ZjNTM1MjZhMjQ3ZjRiNjdlODI0ZDk4NjY0YmYwIiwiaCI6Im11cm11cjY0In0=",
+            Authorization: process.env.REACT_APP_ORS_API_KEY,
             "Content-Type": "application/json"
           },
         }
@@ -111,15 +114,13 @@ function Maps() {
   };
 
   const handleSearch = async () => {
-    await fetchCoordinates(start, setStartCoords);
-    await fetchCoordinates(end, setEndCoords);
+    const startRes = await fetchCoordinates(start, setStartCoords);
+    const endRes = await fetchCoordinates(end, setEndCoords);
 
     // Fetch route slightly late (after coords are set)
-    setTimeout(() => {
-      if(startCoords && endCoords) {
-        fetchRoute(startCoords, endCoords);
-      }
-    }, 1000);
+    if(startRes && endRes) {
+      fetchRoute(startRes, endRes);
+    }
   };
 
   return(
@@ -139,7 +140,7 @@ function Maps() {
       />
       <button onClick={handleSearch}>Find</button>
 
-      <MapContainer center={[48.8566,2.3522]} zoom={13}>
+      <MapContainer center={startCoords || [48.8566,2.3522]} zoom={13}>
         <TileLayer
           attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -171,7 +172,7 @@ function Maps() {
         )}
         
         
-        <MarkerClusterGroup
+        {/* <MarkerClusterGroup
           chunkedLoading
           iconCreateFunction={createCustomClusterIcon}
         >
@@ -184,7 +185,7 @@ function Maps() {
               </Popup>
             </Marker>
           ))}
-        </MarkerClusterGroup>           
+        </MarkerClusterGroup>            */}
 
 
       </MapContainer>
