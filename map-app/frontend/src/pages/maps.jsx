@@ -2,8 +2,8 @@
 import '../App.css';
 import "leaflet/dist/leaflet.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from "react-leaflet";
-import { useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from "react-leaflet";
+import { useState, useEffect } from "react";
 import axios from 'axios';
 import { Icon } from 'leaflet';
 // import { divIcon, point, popup } from 'leaflet';
@@ -16,6 +16,9 @@ function Maps() {
   const [startCoords, setStartCoords] = useState(null);
   const [endCoords, setEndCoords] = useState(null);
   const [routeCoords, setRouteCoords] = useState([]);
+  // To track user's live location
+  const [userLocation, setUserLocation] = useState(null);
+  const [accuracy, setAccuracy] = useState(null); // Accuracy for circle
 
 
   // Markers
@@ -34,11 +37,20 @@ function Maps() {
   //   }
   // ]
 
+  // Custom Pin Icon
   const customIcon = new Icon ({
     iconUrl: "/images/location-pin.png",
     iconSize: [38, 38], // size of the icon
   })
 
+  // User's current location marker icon (different color if you want)
+  const userIcon = new Icon({
+    iconUrl: "/images/current-location.png",
+    iconSize: [38, 38]
+  })
+
+  // Realtime location tracking
+  
   // const createCustomClusterIcon = (cluster) => {
   //   return new divIcon({
   //     html: `<div class="cluster-icon">${cluster.getChildCount()}</div>`,
@@ -123,6 +135,29 @@ function Maps() {
     }
   };
 
+  useEffect(() => {
+    if(!navigator.geolocation) {
+      console.log("Geolocation not supported by your browser")
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      setUserLocation([latitude, longitude]);
+    },
+  (error) => {
+    console.error("Error watching position: ", error);
+  },
+  {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 5000,
+  }
+  );
+
+  return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
   return(
     <div>
       <h2>Route Finder</h2>
@@ -155,7 +190,7 @@ function Maps() {
         /> */}
 
         {startCoords && (
-          <Marker position={startCoords} icon={customIcon}>
+          <Marker position={startCoords} icon={userIcon}>
             <Popup>Start: {start}</Popup>
           </Marker>
         )}
@@ -186,6 +221,14 @@ function Maps() {
             </Marker>
           ))}
         </MarkerClusterGroup>            */}
+
+        {/* User's realtime location marker */}
+        {userLocation && (
+          <Marker position={userLocation} icon={userIcon}>
+            <Popup>You are here</Popup>
+          </Marker>
+        )
+      }
 
 
       </MapContainer>

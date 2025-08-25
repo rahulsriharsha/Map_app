@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Realtime location tracker</title>
+    <title>Realtime Location Tracker</title>
     
     <!-- leaflet css -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css">
@@ -31,21 +31,23 @@
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 <script>
     // Map initialization
-    var map = L.map('map').setView([14.0860746, 100.608406
-    ], 6);
+    var map = L.map('map').setView([14.0860746, 100.608406], 6);
 
-    // osm Layer    
+    // OSM Layer    
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     });
     osm.addTo(map);
 
-    if(!navigator.geolocation){
-        console.log("Your browser does not suppport this geolocation feature");
+    if (!navigator.geolocation) {
+        console.log("Your browser does not support geolocation");
     } else {
-        setInterval(() => {
-            navigator.geolocation.getCurrentPosition(getPosition);
-        }, 500000);
+        // Watch position for realtime tracking
+        navigator.geolocation.watchPosition(getPosition, geoError, {
+            enableHighAccuracy: true,
+            maximumAge: 0,
+            timeout: 5000
+        });
     }
 
     var marker, circle;
@@ -57,22 +59,26 @@
         var lng = position.coords.longitude;
         var accuracy = position.coords.accuracy;
 
-        if(marker) {
-            map.removeLayer(marker)
+        // Remove old marker & circle if they exist
+        if (marker) {
+            map.removeLayer(marker);
+        }
+        if (circle) {
+            map.removeLayer(circle);
         }
 
-        if(circle) {
-            map.removeLayer(circle)
-        }
+        // Add new marker and accuracy circle
+        marker = L.marker([lat, lng]).addTo(map);
+        circle = L.circle([lat, lng], { radius: accuracy }).addTo(map);
 
-        var marker = L.marker([lat, lng]).addTo(map);
-        var circle = L.circle([lat, lng], {radius: accuracy}).addTo(map);
-
+        // Fit map bounds to current location
         var featureGroup = L.featureGroup([marker, circle]).addTo(map);
+        map.fitBounds(featureGroup.getBounds());
 
-        map.fitBounds(featureGroup.getBounds())
-
-        console.log(lat, lng, accuracy);
+        console.log("Lat:", lat, "Lng:", lng, "Accuracy:", accuracy, "meters");
     }
 
+    function geoError(error) {
+        console.warn(`ERROR(${error.code}): ${error.message}`);
+    }
 </script>
