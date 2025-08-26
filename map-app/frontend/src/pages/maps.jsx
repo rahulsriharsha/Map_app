@@ -2,12 +2,11 @@
 import '../App.css';
 import "leaflet/dist/leaflet.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from "react-leaflet";
-import { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
+import { useState, useEffect, useRef } from "react";
 import axios from 'axios';
 import { Icon } from 'leaflet';
-// import { divIcon, point, popup } from 'leaflet';
-// import MarkerClusterGroup from "react-leaflet-cluster";
+import FollowUser from '../components/followUser';
 
 function Maps() {
 
@@ -19,23 +18,10 @@ function Maps() {
   // To track user's live location
   const [userLocation, setUserLocation] = useState(null);
   const [accuracy, setAccuracy] = useState(null); // Accuracy for circle
+  // To follow the user
+  const [followUser, setFollowUser] = useState(true);
 
-
-  // Markers
-  // const markers = [
-  //   {
-  //     geocode: [48.86, 2.3522],
-  //     popup: "Hello, I am popup 1"
-  //   },
-  //   {
-  //     geocode: [48.85, 2.3522],
-  //     popup: "Hello, I am popup 2"
-  //   },
-  //   {
-  //     geocode: [48.855, 2.34],
-  //     popup: "Hello, I am popup 3"
-  //   }
-  // ]
+  const mapRef = useRef(null); // To store map instance
 
   // Custom Pin Icon
   const customIcon = new Icon ({
@@ -49,28 +35,20 @@ function Maps() {
     iconSize: [38, 38]
   })
 
-  // Realtime location tracking
-  
-  // const createCustomClusterIcon = (cluster) => {
-  //   return new divIcon({
-  //     html: `<div class="cluster-icon">${cluster.getChildCount()}</div>`,
-  //     className: "custom-marker-cluster",
-  //     iconSize: point(33, 33, true)
-  //   });
-  // };
+  useEffect(() => {
+    if (navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+          setAccuracy(pos.coords.accuracy); // meters
+        },
+        (err) => console.error("Geolocation error:", err),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+      );
 
-
-
-  // const createdMarkers = [
-  //   {
-  //     geocode: startCoords,
-  //     popup: "I am the starting location"
-  //   },
-  //   {
-  //     geocode: endCoords,
-  //     popup: "I am the destination"
-  //   }
-  // ]
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
 
   const fetchCoordinates = async (place, setCoords) => {
     try{
@@ -94,12 +72,13 @@ function Maps() {
     if(!startCoords || !endCoords) return;
     try{
       const res = await axios.post(
-        "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
+        "https://api.openrouteservice.org/v2/directions/driving-hgv/geojson",
         {
           coordinates:[
             [startCoords[1], startCoords[0]], //lng, ltn
             [endCoords[1], endCoords[0]]
-          ]
+          ],
+          options: {avoid_features: ["ferries"]}
         },
         {
           headers: {
@@ -135,51 +114,65 @@ function Maps() {
     }
   };
 
-  useEffect(() => {
-    if(!navigator.geolocation) {
-      console.log("Geolocation not supported by your browser")
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition((position) => {
-      const { latitude, longitude } = position.coords;
-      setUserLocation([latitude, longitude]);
-    },
-  (error) => {
-    console.error("Error watching position: ", error);
-  },
-  {
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 5000,
-  }
-  );
-
-  return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  // const RecenterMap = ({coords}) => {
+  //   const map = useMap();
+  //   if(coords) {
+  //     map.setView(coords, 13);
+  //   }
+  //   return null;
+  // };
 
   return(
     <div>
       <h2>Route Finder</h2>
-      <input
-        type='text'
-        placeholder='Start location'
-        value={start}
-        onChange={(e) => setStart(e.target.value)}
-      />
-      <input
-        type='text'
-        placeholder='End location'
-        value={end}
-        onChange={(e) => setEnd(e.target.value)}
-      />
-      <button onClick={handleSearch}>Find</button>
 
-      <MapContainer center={startCoords || [48.8566,2.3522]} zoom={13}>
+      <div style={{ marginBottom: 8 }}>
+        <input
+          type='text'
+          placeholder='Start location'
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+        />
+        <input
+          type='text'
+          placeholder='End location'
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+        />
+        <button onClick={handleSearch}>Find</button>
+      </div>
+
+      <div style={{ marginBottom: 8 }}>
+        <button onClick={() => setFollowUser(!followUser)}>
+          {followUser ? "Stop Following" : "Start Following"}
+        </button>
+        <button
+          onClick={() => {
+            if (mapRef.current && userLocation) {
+              mapRef.current.setView(userLocation, 13);
+            }
+          }}
+        >
+          Recenter once
+        </button>
+      </div>
+      
+
+      <MapContainer 
+        center={userLocation || [48.8566,2.3522]} 
+        zoom={13}
+        whenCreated={(mapInstance) => {
+          mapRef.current = mapInstance;
+        }}
+      >
         <TileLayer
           attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {/* <RecenterMap coords = {userLocation}/> */}
+
+        <FollowUser userLocation={userLocation} />
 
         {/* <TileLayer
           attribution = 'Esri'
@@ -205,22 +198,6 @@ function Maps() {
             positions={routeCoords} color='blue'
           />
         )}
-        
-        
-        {/* <MarkerClusterGroup
-          chunkedLoading
-          iconCreateFunction={createCustomClusterIcon}
-        >
-          {markers.map((marker, index) => (
-            <Marker key={index} position={marker.geocode} icon={customIcon}>
-              <Popup>
-                <h4>
-                  {marker.popup}
-                </h4>
-              </Popup>
-            </Marker>
-          ))}
-        </MarkerClusterGroup>            */}
 
         {/* User's realtime location marker */}
         {userLocation && (
@@ -229,7 +206,6 @@ function Maps() {
           </Marker>
         )
       }
-
 
       </MapContainer>
     </div>
