@@ -2,7 +2,7 @@
 import '../App.css';
 import "leaflet/dist/leaflet.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from "react-leaflet";
 import { useState, useEffect, useRef } from "react";
 import axios from 'axios';
 import { Icon } from 'leaflet';
@@ -35,6 +35,7 @@ function Maps() {
     iconSize: [38, 38]
   })
 
+  // Get live GPS updates
   useEffect(() => {
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
@@ -42,13 +43,23 @@ function Maps() {
           setUserLocation([pos.coords.latitude, pos.coords.longitude]);
           setAccuracy(pos.coords.accuracy); // meters
         },
-        (err) => console.error("Geolocation error:", err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+        (err) => {
+          console.error("Geolocation error:", err);
+          // Optionally keep old location instead of null
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
       );
 
       return () => navigator.geolocation.clearWatch(watchId);
     }
   }, []);
+
+  // Move map to always follow user
+  useEffect(() => {
+    if(mapRef.current && userLocation && followUser) {
+      mapRef.current.setView(userLocation, 16);
+    }
+  }, [userLocation, followUser]);
 
   const fetchCoordinates = async (place, setCoords) => {
     try{
@@ -148,8 +159,17 @@ function Maps() {
         </button>
         <button
           onClick={() => {
-            if (mapRef.current && userLocation) {
-              mapRef.current.setView(userLocation, 13);
+            if(mapRef.current) {
+              if (userLocation) {
+                mapRef.current.flyTo(userLocation, 16, 
+                  { animate: true, duration: 1.0 });
+              } else {
+                // Fallback: Use last known location or a default center
+                console.warn("Map or userLocation not ready yet");
+                mapRef.current.flyTo([48.8566,2.3522], 16, { animate: true, duration: 1.0 });
+              }
+            } else {
+              console.warn("Map not ready yet");
             }
           }}
         >
@@ -201,16 +221,24 @@ function Maps() {
 
         {/* User's realtime location marker */}
         {userLocation && (
-          <Marker position={userLocation} icon={userIcon}>
-            <Popup>You are here</Popup>
-          </Marker>
+          <>
+            <Marker position={userLocation} icon={userIcon}>
+              <Popup>You are here</Popup>
+            </Marker>
+
+            {/* Accuracy circle  */}
+            {accuracy && (
+              <Circle 
+              center={userLocation}
+              radius={accuracy}
+              pathOptions={{ color: 'blue', fillColor: 'blue', fillOpacity: 0.2 }}
+              />
+            )}          
+          </>
         )
       }
-
       </MapContainer>
     </div>
-    
-
   );
 }
 
